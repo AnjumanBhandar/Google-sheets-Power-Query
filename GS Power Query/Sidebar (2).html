@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Power Query</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg:       #0f0f17;
+    --bg2:      #161622;
+    --bg3:      #1e1e2e;
+    --border:   #2a2a3e;
+    --border2:  #3a3a50;
+    --accent:   #7c6af7;
+    --accent2:  #9d8fff;
+    --success:  #34d399;
+    --danger:   #f87171;
+    --warning:  #fbbf24;
+    --text:     #e2e2f0;
+    --text2:    #9090b0;
+    --text3:    #6060a0;
+    --mono:     'JetBrains Mono', monospace;
+    --sans:     'DM Sans', sans-serif;
+    --radius:   8px;
+    --radius-lg:12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* Full-window layout: sidebar nav + main content side by side */
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .app-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* Left nav panel (visible in full-window mode) */
+  .left-nav {
+    width: 200px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+  .left-nav.hidden { display: none; }
+
+  .nav-section-title {
+    font-size: 10px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text3);
+    padding: 14px 14px 6px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 14px;
+    font-size: 12px; color: var(--text2);
+    cursor: pointer; border-left: 2px solid transparent;
+    transition: all .12s;
+  }
+  .nav-item:hover  { background: var(--bg3); color: var(--text); }
+  .nav-item.active { color: var(--accent2); border-left-color: var(--accent); background: var(--bg3); }
+  .nav-item .nav-ic { width: 16px; text-align: center; font-size: 13px; }
+
+  /* Main content area */
+  .main-content {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 14px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-logo {
+    width: 28px; height: 28px;
+    background: var(--accent);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .header-title { font-weight: 600; font-size: 14px; color: var(--text); }
+  .header-sub   { font-size: 11px; color: var(--text3); font-family: var(--mono); }
+  .header-actions { margin-left: auto; display: flex; gap: 6px; }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+    padding: 0 14px;
+  }
+  .tab {
+    padding: 8px 12px;
+    font-size: 12px; font-weight: 500;
+    color: var(--text3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .tab:hover  { color: var(--text2); }
+  .tab.active { color: var(--accent2); border-bottom-color: var(--accent); }
+
+  /* ── Content area ── */
+  .content { padding: 14px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
+  .panel { display: none; }
+  .panel.active { display: flex; flex-direction: column; gap: 12px; }
+
+  /* Full-window: constrain and center content */
+  @media (min-width: 700px) {
+    .content { padding: 20px 28px; }
+    .panel.active { max-width: 900px; width: 100%; }
+  }
+
+  /* ── Section ── */
+  .section { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+  .section-head {
+    padding: 9px 12px;
+    font-size: 11px; font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase; letter-spacing: .07em;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg3);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .section-body { padding: 12px; }
+
+  /* ── Form controls ── */
+  label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 4px; }
+  select, input[type=text], input[type=number] {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 12px;
+    padding: 7px 10px;
+    outline: none;
+    transition: border-color .15s;
+    -webkit-appearance: none;
+  }
+  select:focus, input:focus { border-color: var(--accent); }
+  select option { background: var(--bg3); }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    padding: 7px 13px; border-radius: var(--radius);
+    font-family: var(--sans); font-size: 12px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border);
+    background: var(--bg3); color: var(--text2);
+    transition: all .15s; white-space: nowrap;
+  }
+  .btn:hover { background: var(--border); color: var(--text); }
+  .btn-accent {
+    background: var(--accent); border-color: var(--accent);
+    color: #fff;
+  }
+  .btn-accent:hover { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+  .btn-success { background: var(--success); border-color: var(--success); color: #0a2a1e; }
+  .btn-success:hover { opacity: .9; }
+  .btn-danger  { background: transparent; border-color: var(--danger); color: var(--danger); }
+  .btn-danger:hover  { background: var(--danger); color: #fff; }
+  .btn-sm { padding: 4px 9px; font-size: 11px; }
+  .btn-xs { padding: 2px 7px; font-size: 10px; }
+  .btn-icon { padding: 5px 8px; }
+  .btn-full { width: 100%; }
+
+  /* ── Step cards ── */
+  .steps-list { display: flex; flex-direction: column; gap: 6px; }
+  .step-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: border-color .15s, opacity .15s, transform .15s;
+  }
+  .step-card.disabled { opacity: .45; }
+  .step-card.dragging { opacity: .35; transform: scale(.98); border-color: var(--accent); }
+  .step-card.drag-over-top    { border-top: 2px solid var(--accent); }
+  .step-card.drag-over-bottom { border-bottom: 2px solid var(--accent); }
+  .step-card-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+  }
+  .drag-grip {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 4px 3px; cursor: grab; flex-shrink: 0; opacity: .4;
+    transition: opacity .15s;
+  }
+  .drag-grip:hover { opacity: 1; }
+  .drag-grip span { display: block; width: 14px; height: 2px; background: var(--text3); border-radius: 1px; }
+  .step-num {
+    width: 18px; height: 18px;
+    background: var(--accent);
+    border-radius: 50%;
+    font-size: 10px; font-weight: 600; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-card.disabled .step-num { background: var(--border2); }
+  .step-label { font-size: 12px; font-weight: 500; flex: 1; }
+  .step-summary { font-size: 10px; color: var(--text3); font-family: var(--mono); }
+  .step-actions { display: flex; gap: 4px; }
+  .step-body { padding: 10px 12px; border-top: 1px solid var(--border); display: none; }
+  .step-body.open { display: block; }
+
+  /* ── History tab ── */
+  .history-list { display: flex; flex-direction: column; gap: 4px; }
+  .history-entry {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    font-size: 12px; cursor: pointer;
+    transition: all .1s;
+  }
+  .history-entry:hover { border-color: var(--accent); background: var(--bg2); }
+  .history-entry.current { border-color: var(--accent); background: #1a1430; }
+  .history-entry.future  { opacity: .4; }
+  .history-ic { font-size: 13px; width: 20px; text-align: center; flex-shrink: 0; }
+  .history-desc { flex: 1; }
+  .history-time { font-size: 10px; color: var(--text3); font-family: var(--mono); flex-shrink: 0; }
+  .history-badge {
+    font-size: 9px; font-weight: 600; padding: 1px 6px;
+    border-radius: 10px; background: var(--accent); color: #fff; flex-shrink: 0;
+  }
+  .undoredo-bar {
+    display: flex; gap: 6px; align-items: center;
+    padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--bg3);
+  }
+  .undoredo-bar .spacer { flex: 1; }
+  .undoredo-bar .history-count { font-size: 11px; color: var(--text3); font-family: var(--mono); }
+
+  /* ── Checkbox list ── */
+  .check-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; padding-right: 4px; }
+  .check-list::-webkit-scrollbar { width: 4px; }
+  .check-list::-webkit-scrollbar-track { background: transparent; }
+  .check-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  .check-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 8px;
+    border-radius: 5px;
+    background: var(--bg2);
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .check-item:hover { background: var(--border); }
+  .check-item input[type=checkbox] { accent-color: var(--accent); width: 13px; height: 13px; }
+  .rename-input { flex: 1; background: transparent; border: none; border-bottom: 1px solid var(--border2); color: var(--text2); font-size: 11px; font-family: var(--mono); padding: 1px 3px; outline: none; }
+  .rename-input:focus { border-bottom-color: var(--accent); }
+
+  /* ── Filter rules ── */
+  .filter-rules { display: flex; flex-direction: column; gap: 6px; }
+  .filter-rule { display: flex; gap: 5px; align-items: center; }
+  .filter-rule select { flex: 1; }
+  .filter-rule .btn-xs { flex-shrink: 0; }
+
+  /* ── Sort keys ── */
+  .sort-keys { display: flex; flex-direction: column; gap: 6px; }
+  .sort-key { display: flex; gap: 5px; align-items: center; }
+  .sort-key select { flex: 1; }
+
+  /* ── Preview table ── */
+  .preview-wrap {
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    max-height: 300px;
+  }
+  .preview-wrap::-webkit-scrollbar { width: 6px; height: 6px; }
+  .preview-wrap::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  .preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .preview-table th {
+    background: var(--bg3);
+    color: var(--accent2);
+    padding: 6px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0;
+    font-weight: 500;
+  }
+  .preview-table td {
+    padding: 4px 10px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text2);
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .preview-table tr:hover td { background: var(--bg3); }
+  .preview-table tr:last-child td { border-bottom: none; }
+
+  /* ── Status bar ── */
+  .status {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 12px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    border: 1px solid var(--border);
+  }
+  .status.idle    { color: var(--text3); background: var(--bg3); }
+  .status.loading { color: var(--warning); background: #2a2010; border-color: #5a4010; }
+  .status.ok      { color: var(--success); background: #0a2a1e; border-color: #1a5a3e; }
+  .status.error   { color: var(--danger);  background: #2a1010; border-color: #5a1010; }
+
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: currentColor; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .status.loading .dot { animation: pulse .8s infinite; }
+
+  /* ── Saved queries ── */
+  .saved-list { display: flex; flex-direction: column; gap: 6px; }
+  .saved-item { display: flex; align-items: center; gap: 6px; padding: 8px 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); min-width: 0; }
+  .saved-name { flex: 1; min-width: 0; font-size: 12px; font-family: var(--mono); color: var(--accent2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .saved-item .btn { flex-shrink: 0; }
+  .empty-state { text-align: center; padding: 24px 12px; color: var(--text3); font-size: 12px; }
+
+  /* ── Add step menu ── */
+  .add-step-menu {
+    display: none;
+    flex-direction: column;
+    gap: 3px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-lg);
+    padding: 6px;
+    margin-top: 6px;
+  }
+  .add-step-menu.open { display: flex; }
+  .step-option {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 10px;
+    border-radius: var(--radius);
+    cursor: pointer; font-size: 12px; color: var(--text2);
+    transition: all .1s;
+  }
+  .step-option:hover { background: var(--border); color: var(--text); }
+  .step-option .ic { font-size: 13px; width: 20px; text-align: center; }
+  .step-option .sdesc { font-size: 10px; color: var(--text3); }
+
+  /* ── Output settings ── */
+  .output-settings { display: flex; flex-direction: column; gap: 10px; }
+  .toggle-row { display: flex; align-items: center; gap: 8px; }
+  .toggle { width: 32px; height: 18px; background: var(--border2); border-radius: 9px; cursor: pointer; position: relative; transition: background .2s; flex-shrink: 0; }
+  .toggle.on { background: var(--accent); }
+  .toggle::after { content: ''; position: absolute; width: 12px; height: 12px; background: #fff; border-radius: 50%; top: 3px; left: 3px; transition: transform .2s; }
+  .toggle.on::after { transform: translateX(14px); }
+  .toggle-label { font-size: 12px; color: var(--text2); }
+
+  /* ── Run bar (bottom) ── */
+  .run-bar {
+    position: sticky; bottom: 0;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    padding: 10px 14px;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .run-info { flex: 1; font-size: 11px; color: var(--text3); font-family: var(--mono); }
+
+  /* ── Pill badges ── */
+  .pill { display: inline-block; padding: 1px 7px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+  .pill-accent { background: #2a2050; color: var(--accent2); border: 1px solid var(--accent); }
+
+  /* scrollbars global */
+  * { scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+<!-- ── Header ──────────────────────────────────────────── -->
+<div class="header">
+  <div class="header-logo">⚡</div>
+  <div>
+    <div class="header-title">Power Query</div>
+    <div class="header-sub">for Google Sheets</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-sm btn-icon" title="Refresh sidebar" onclick="refreshSidebar()">↻</button>
+    <button class="btn btn-sm" onclick="loadSavedQueries()">Saved</button>
+    <button class="btn btn-sm" onclick="saveCurrentQuery()">Save</button>
+    <button class="btn btn-sm btn-danger" title="Close" onclick="closePanel()" style="padding:5px 9px;">✕</button>
+  </div>
+</div>
+
+<div class="app-body">
+
+  <!-- ── Left nav (full-window only) ─────────────────── -->
+  <nav class="left-nav hidden" id="left-nav">
+    <div class="nav-section-title">Query</div>
+    <div class="nav-item active" id="nav-build"   onclick="switchTab('build')">  <span class="nav-ic">◇</span> Build</div>
+    <div class="nav-item"        id="nav-preview" onclick="switchTab('preview')"><span class="nav-ic">◫</span> Preview</div>
+    <div class="nav-item"        id="nav-output"  onclick="switchTab('output')"> <span class="nav-ic">◉</span> Output</div>
+    <div class="nav-section-title" style="margin-top:8px">Manage</div>
+    <div class="nav-item"        id="nav-saved"   onclick="switchTab('saved')">  <span class="nav-ic">◧</span> Library</div>
+    <div class="nav-item"        id="nav-history" onclick="switchTab('history')"><span class="nav-ic">⏱</span> History</div>
+  </nav>
+
+  <!-- ── Main content ─────────────────────────────────── -->
+  <div class="main-content" id="main-content">
+
+<!-- ── Tabs (compact mode only) ─────────────────────── -->
+<div class="tabs" id="tabs-bar">
+  <div class="tab active" onclick="switchTab('build')">Build</div>
+  <div class="tab" onclick="switchTab('preview')">Preview</div>
+  <div class="tab" onclick="switchTab('output')">Output</div>
+  <div class="tab" onclick="switchTab('saved')">Library</div>
+  <div class="tab" onclick="switchTab('history')">History</div>
+</div>
+
+<!-- ── Content ─────────────────────────────────────────── -->
+<div class="content">
+
+  <!-- BUILD TAB -->
+  <div class="panel active" id="panel-build">
+
+    <!-- Source -->
+    <div class="section">
+      <div class="section-head">
+        <span>◈</span> Data source
+      </div>
+      <div class="section-body" style="display:flex;flex-direction:column;gap:10px">
+        <div>
+          <label>Source sheet</label>
+          <select id="src-sheet" onchange="onSourceChange()">
+            <option value="">Loading sheets…</option>
+          </select>
+        </div>
+        <div>
+          <label>Header rows</label>
+          <select id="src-header-rows">
+            <option value="1">1 row (standard)</option>
+            <option value="2">2 rows (merged headers)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Steps -->
+    <div class="section">
+      <div class="section-head" style="justify-content:space-between">
+        <span style="display:flex;align-items:center;gap:6px"><span>◇</span> Transform steps</span>
+        <button class="btn btn-sm btn-accent" onclick="toggleAddMenu()">+ Add step</button>
+      </div>
+
+      <!-- Add step dropdown -->
+      <div class="add-step-menu" id="add-step-menu">
+        <div class="step-option" onclick="addStep('unpivot')">
+          <span class="ic">⤢</span>
+          <div><div>Unpivot columns</div><div class="sdesc">Wide → long format</div></div>
+        </div>
+        <div class="step-option" onclick="addStep('filter')">
+          <span class="ic">⊟</span>
+          <div><div>Filter rows</div><div class="sdesc">Keep rows matching conditions</div></div>
+        </div>
+        <div class="step-option" onclick="addStep('selectCols')">
+          <span class="ic">⊞</span>
+          <div><div>Select / rename columns</div><div class="sdesc">Pick, reorder, rename</div></div>
+        </div>
+        <div class="step-option" onclick="addStep('sort')">
+          <span class="ic">⇅</span>
+          <div><div>Sort rows</div><div class="sdesc">Multi-column sort</div></div>
+        </div>
+        <div class="step-option" onclick="addStep('addColumn')">
+          <span class="ic">⊕</span>
+          <div><div>Add custom column</div><div class="sdesc">Concat, math, conditional</div></div>
+        </div>
+        <div class="step-option" onclick="addStep('changeType')">
+          <span class="ic">⟳</span>
+          <div><div>Change data type</div><div class="sdesc">Text, number, date, boolean</div></div>
+        </div>
+        <div class="step-option" onclick="addStep('removeDuplicates')">
+          <span class="ic">⊜</span>
+          <div><div>Remove duplicates</div><div class="sdesc">Deduplicate rows</div></div>
+        </div>
+        <div class="step-option" onclick="addStep('trimClean')">
+          <span class="ic">✦</span>
+          <div><div>Trim &amp; clean text</div><div class="sdesc">Trim, case, remove chars</div></div>
+        </div>
+      </div>
+
+      <div class="section-body">
+        <div class="steps-list" id="steps-list">
+          <div class="empty-state" id="steps-empty">No steps yet. Click "+ Add step" to begin.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="status-build" class="status idle"><div class="dot"></div><span>Ready</span></div>
+  </div>
+
+  <!-- PREVIEW TAB -->
+  <div class="panel" id="panel-preview">
+    <div class="section">
+      <div class="section-head" style="justify-content:space-between">
+        <span style="display:flex;align-items:center;gap:6px"><span>◫</span> Live preview</span>
+        <button class="btn btn-sm btn-accent" onclick="runPreview()">Refresh ↻</button>
+      </div>
+      <div class="section-body">
+        <div id="preview-stats" style="font-size:11px;color:var(--text3);margin-bottom:8px;font-family:var(--mono);">
+          Run a preview to see results
+        </div>
+        <div id="preview-container">
+          <div class="empty-state">Click "Refresh" to generate a preview of your query.</div>
+        </div>
+      </div>
+    </div>
+    <div id="status-preview" class="status idle"><div class="dot"></div><span>Ready</span></div>
+  </div>
+
+  <!-- OUTPUT TAB -->
+  <div class="panel" id="panel-output">
+    <div class="section">
+      <div class="section-head"><span>◉</span> Output settings</div>
+      <div class="section-body output-settings">
+        <div>
+          <label>Output sheet name</label>
+          <input type="text" id="out-name" value="PQ_Result" placeholder="Leave blank for auto-name">
+        </div>
+        <div class="toggle-row">
+          <div class="toggle on" id="toggle-replace" onclick="this.classList.toggle('on')"></div>
+          <span class="toggle-label">Replace existing sheet with same name</span>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle" id="toggle-timestamp" onclick="this.classList.toggle('on')"></div>
+          <span class="toggle-label">Append timestamp to sheet name</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><span>◈</span> Run query</div>
+      <div class="section-body" style="display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:12px;color:var(--text2);line-height:1.6">
+          This will run all active steps on your source data and write the result to a new sheet.
+        </div>
+        <button class="btn btn-success btn-full" onclick="runFullQuery()" style="padding:10px">
+          ▶ Run query
+        </button>
+      </div>
+    </div>
+
+    <div id="status-output" class="status idle"><div class="dot"></div><span>Ready</span></div>
+  </div>
+
+  <!-- LIBRARY TAB -->
+  <div class="panel" id="panel-saved">
+    <div class="section">
+      <div class="section-head" style="justify-content:space-between">
+        <span style="display:flex;align-items:center;gap:6px"><span>◧</span> Saved queries</span>
+        <button class="btn btn-sm" onclick="loadSavedQueries()">Refresh</button>
+      </div>
+      <div class="section-body">
+        <div id="saved-list-container">
+          <div class="empty-state">Loading…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY TAB -->
+  <div class="panel" id="panel-history">
+    <div class="section">
+      <div class="section-head"><span>⏱</span> Step history &amp; undo/redo</div>
+      <div class="undoredo-bar">
+        <button class="btn btn-sm" id="btn-undo" onclick="historyUndo()" disabled>← Undo</button>
+        <button class="btn btn-sm" id="btn-redo" onclick="historyRedo()" disabled>Redo →</button>
+        <div class="spacer"></div>
+        <span class="history-count" id="history-count">0 / 0</span>
+        <button class="btn btn-sm btn-danger" onclick="historyClear()" title="Clear all history">Clear</button>
+      </div>
+      <div class="section-body">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px;line-height:1.6">
+          Click any entry to jump to that state. Bold entry = current.
+        </div>
+        <div class="history-list" id="history-list">
+          <div class="empty-state">No history yet. Start adding steps.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<!-- ── Run bar ──────────────────────────────────────────── -->
+<div class="run-bar">
+  <div class="run-info" id="run-info">No source selected</div>
+  <button class="btn btn-sm" onclick="switchTab('preview');runPreview()">Preview</button>
+  <button class="btn btn-sm btn-accent" onclick="switchTab('output');runFullQuery()">▶ Run</button>
+</div>
+
+  </div><!-- /main-content -->
+</div><!-- /app-body -->
+</div><!-- /app-shell -->
+
+
+<script>
+// ============================================================
+//  STATE
+// ============================================================
+var state = {
+  sheets:     [],
+  headers:    [],
+  steps:      [],
+  stepIdSeq:  0,
+  // ── History / undo-redo ──
+  history:    [],   // array of { steps snapshot, desc, icon, time }
+  historyIdx: -1    // pointer to current position (-1 = nothing recorded yet)
+};
+
+// ============================================================
+//  INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
+  google.script.run
+    .withSuccessHandler(function(names) {
+      state.sheets = names;
+      var sel = document.getElementById('src-sheet');
+      sel.innerHTML = '<option value="">-- select sheet --</option>';
+      names.forEach(function(n) {
+        var o = document.createElement('option');
+        o.value = o.text = n;
+        sel.appendChild(o);
+      });
+    })
+    .withFailureHandler(function(e) { setStatus('build', 'error', 'Failed to load sheets: ' + e.message); })
+    .getSheetNames();
+  loadSavedQueries();
+});
+
+// ============================================================
+//  FULL-WINDOW DETECTION
+// ============================================================
+var IS_FULL_WINDOW = (window.self === window.top); // true when opened as web app tab
+
+document.addEventListener('DOMContentLoaded', function() {
+  if (IS_FULL_WINDOW) {
+    // Show left nav, hide tab bar
+    var nav = document.getElementById('left-nav');
+    var tabs = document.getElementById('tabs-bar');
+    if (nav)  nav.classList.remove('hidden');
+    if (tabs) tabs.style.display = 'none';
+    // Wider content padding in full-window
+    var content = document.querySelector('.content');
+    if (content) content.style.maxWidth = '960px';
+  }
+});
+
+function closePanel() {
+  if (IS_FULL_WINDOW) {
+    window.close();
+  } else {
+    try { google.script.host.close(); } catch(e) { window.close(); }
+  }
+}
+
+// ============================================================
+//  TABS
+// ============================================================
+function switchTab(name) {
+  var tabNames = ['build','preview','output','saved','history'];
+
+  // Top tab bar
+  document.querySelectorAll('.tabs .tab').forEach(function(t, i) {
+    t.classList.toggle('active', tabNames[i] === name);
+  });
+
+  // Panels
+  document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+  var panel = document.getElementById('panel-' + name);
+  if (panel) panel.classList.add('active');
+
+  // Left nav items
+  tabNames.forEach(function(n) {
+    var el = document.getElementById('nav-' + n);
+    if (el) el.classList.toggle('active', n === name);
+  });
+
+  if (name === 'history') renderHistoryList();
+}
+
+// ============================================================
+//  SOURCE
+// ============================================================
+function onSourceChange() {
+  var sheet = document.getElementById('src-sheet').value;
+  if (!sheet) { state.headers = []; updateRunInfo(); return; }
+  google.script.run
+    .withSuccessHandler(function(hdrs) {
+      state.headers = hdrs;
+      updateRunInfo();
+      // Refresh any open step params that need headers
+      refreshStepUIs();
+    })
+    .withFailureHandler(function(e) { setStatus('build','error', e.message); })
+    .getSheetHeaders(sheet);
+}
+
+function updateRunInfo() {
+  var sheet = document.getElementById('src-sheet').value;
+  var info = document.getElementById('run-info');
+  if (!sheet) { info.textContent = 'No source selected'; return; }
+  info.textContent = sheet + '  ·  ' + state.steps.filter(function(s){return !s.disabled;}).length + ' active step(s)';
+}
+
+// ============================================================
+//  ADD STEP MENU
+// ============================================================
+function toggleAddMenu() {
+  var m = document.getElementById('add-step-menu');
+  m.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  var m = document.getElementById('add-step-menu');
+  if (m.classList.contains('open') && !e.target.closest('#add-step-menu') && !e.target.closest('.btn-accent')) {
+    m.classList.remove('open');
+  }
+});
+
+// ============================================================
+//  STEPS
+// ============================================================
+var STEP_META = {
+  unpivot:          { label: 'Unpivot columns',         icon: '⤢' },
+  filter:           { label: 'Filter rows',             icon: '⊟' },
+  selectCols:       { label: 'Select / rename columns', icon: '⊞' },
+  sort:             { label: 'Sort rows',               icon: '⇅' },
+  addColumn:        { label: 'Add custom column',       icon: '⊕' },
+  changeType:       { label: 'Change data type',        icon: '⟳' },
+  removeDuplicates: { label: 'Remove duplicates',       icon: '⊜' },
+  trimClean:        { label: 'Trim & clean text',       icon: '✦' }
+};
+
+function addStep(type) {
+  document.getElementById('add-step-menu').classList.remove('open');
+  var id = ++state.stepIdSeq;
+  var step = { id: id, type: type, disabled: false, params: getDefaultParams(type) };
+  state.steps.push(step);
+  var meta = STEP_META[type] || { label: type, icon: '◇' };
+  pushHistory('Added ' + meta.label, meta.icon);
+  renderSteps();
+  setTimeout(function() { toggleStepBody(id); }, 50);
+  updateRunInfo();
+}
+
+function getDefaultParams(type) {
+  switch(type) {
+    case 'unpivot':          return { anchorCols: [], pivotCols: [], labelColName: 'Attribute', valueColName: 'Value' };
+    case 'filter':           return { rules: [{ col: '', op: 'equals', value: '' }], logic: 'AND' };
+    case 'selectCols':       return { cols: [] };
+    case 'sort':             return { keys: [{ col: '', dir: 'asc' }] };
+    case 'addColumn':        return { newColName: 'New Column', expression: 'concat', cols: [], separator: ' ' };
+    case 'changeType':       return { conversions: [{ col: '', toType: 'text' }] };
+    case 'removeDuplicates': return { keyCols: [] };
+    case 'trimClean':        return { cols: [], ops: ['trim'] };
+    default:                 return {};
+  }
+}
+
+function removeStep(id) {
+  var s = state.steps.find(function(x){ return x.id === id; });
+  var meta = s ? (STEP_META[s.type] || { label: s.type, icon: '◇' }) : { label: 'step', icon: '✕' };
+  state.steps = state.steps.filter(function(x){ return x.id !== id; });
+  pushHistory('Removed ' + meta.label, '✕');
+  renderSteps();
+  updateRunInfo();
+}
+
+function toggleStepDisabled(id) {
+  var s = state.steps.find(function(x){ return x.id === id; });
+  if (s) {
+    s.disabled = !s.disabled;
+    var meta = STEP_META[s.type] || { label: s.type, icon: '◇' };
+    pushHistory((s.disabled ? 'Disabled ' : 'Enabled ') + meta.label, s.disabled ? '⏸' : '▶');
+    renderSteps();
+    updateRunInfo();
+  }
+}
+
+function toggleStepBody(id) {
+  var body = document.getElementById('step-body-' + id);
+  if (body) body.classList.toggle('open');
+}
+
+function renderSteps() {
+  var list = document.getElementById('steps-list');
+
+  // Snapshot open state BEFORE clearing DOM
+  var existingCards = {};
+  list.querySelectorAll('.step-card').forEach(function(el) {
+    existingCards[el.dataset.id] = el.querySelector('.step-body').classList.contains('open');
+  });
+
+  // Clear and rebuild
+  list.innerHTML = '';
+
+  if (state.steps.length === 0) {
+    list.innerHTML = '<div class="empty-state" id="steps-empty">No steps yet. Click \"+ Add step\" to begin.</div>';
+    return;
+  }
+  state.steps.forEach(function(step, idx) {
+    var meta     = STEP_META[step.type] || { label: step.type, icon: '◇' };
+    var wasOpen  = existingCards[step.id] || false;
+
+    var card = document.createElement('div');
+    card.className = 'step-card' + (step.disabled ? ' disabled' : '');
+    card.dataset.id = step.id;
+    card.draggable = true;
+
+    card.innerHTML =
+      '<div class="step-card-head" onclick="toggleStepBody(' + step.id + ')">' +
+        '<div class="drag-grip" draggable="false" title="Drag to reorder" onclick="event.stopPropagation()">' +
+          '<span></span><span></span><span></span>' +
+        '</div>' +
+        '<div class="step-num">' + (idx + 1) + '</div>' +
+        '<div style="flex:1">' +
+          '<div class="step-label">' + meta.icon + ' ' + meta.label + '</div>' +
+          '<div class="step-summary" id="step-summary-' + step.id + '">' + getStepSummary(step) + '</div>' +
+        '</div>' +
+        '<div class="step-actions" onclick="event.stopPropagation()">' +
+          '<button class="btn btn-xs" title="' + (step.disabled ? 'Enable' : 'Disable') + '" onclick="toggleStepDisabled(' + step.id + ')">' + (step.disabled ? '▶' : '⏸') + '</button>' +
+          '<button class="btn btn-xs btn-danger" onclick="removeStep(' + step.id + ')">✕</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="step-body' + (wasOpen ? ' open' : '') + '" id="step-body-' + step.id + '">' +
+        buildStepForm(step) +
+      '</div>';
+
+    // Drag events
+    card.addEventListener('dragstart', onDragStart);
+    card.addEventListener('dragend',   onDragEnd);
+    card.addEventListener('dragover',  onDragOver);
+    card.addEventListener('dragleave', onDragLeave);
+    card.addEventListener('drop',      onDrop);
+
+    list.appendChild(card);
+  });
+}
+
+function getStepSummary(step) {
+  var p = step.params;
+  switch(step.type) {
+    case 'unpivot':          return 'Anchors: ' + (p.anchorCols.length || 'auto') + ' · Label: ' + p.labelColName;
+    case 'filter':           return (p.rules.length) + ' rule(s) · ' + p.logic;
+    case 'selectCols':       return p.cols.length ? p.cols.length + ' cols selected' : 'not configured';
+    case 'sort':             return p.keys.map(function(k){ return k.col + ' ' + k.dir; }).join(', ') || 'not configured';
+    case 'addColumn':        return '"' + p.newColName + '" via ' + p.expression;
+    case 'changeType':       return p.conversions.length + ' conversion(s)';
+    case 'removeDuplicates': return p.keyCols.length ? 'key: ' + p.keyCols.join(', ') : 'all cols';
+    case 'trimClean':        return p.ops.join(', ');
+    default:                 return '';
+  }
+}
+
+// ============================================================
+//  STEP FORM BUILDERS
+// ============================================================
+function buildStepForm(step) {
+  switch(step.type) {
+    case 'unpivot':          return buildUnpivotForm(step);
+    case 'filter':           return buildFilterForm(step);
+    case 'selectCols':       return buildSelectColsForm(step);
+    case 'sort':             return buildSortForm(step);
+    case 'addColumn':        return buildAddColForm(step);
+    case 'changeType':       return buildChangeTypeForm(step);
+    case 'removeDuplicates': return buildRemoveDupForm(step);
+    case 'trimClean':        return buildTrimCleanForm(step);
+    default:                 return '<p style="color:var(--text3);font-size:12px">No configuration needed.</p>';
+  }
+}
+
+function headerOptions(selected) {
+  return state.headers.map(function(h) {
+    return '<option value="' + esc(h) + '"' + (h === selected ? ' selected' : '') + '>' + esc(h) + '</option>';
+  }).join('');
+}
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── UNPIVOT ──────────────────────────────────────────────────
+function buildUnpivotForm(step) {
+  var p = step.params;
+  var id = step.id;
+  var hdrs = state.headers;
+
+  var anchorChecks = hdrs.map(function(h) {
+    var chk = p.anchorCols.indexOf(h) !== -1;
+    return '<label class="check-item"><input type="checkbox" ' + (chk ? 'checked' : '') + ' onchange="unpivotToggleAnchor(' + id + ',\'' + esc(h) + '\',this.checked)"><span>' + esc(h) + '</span></label>';
+  }).join('');
+
+  var pivotChecks = hdrs.map(function(h) {
+    var chk = p.pivotCols.indexOf(h) !== -1;
+    return '<label class="check-item"><input type="checkbox" ' + (chk ? 'checked' : '') + ' onchange="unpivotTogglePivot(' + id + ',\'' + esc(h) + '\',this.checked)"><span>' + esc(h) + '</span></label>';
+  }).join('');
+
+  return '<div style="display:flex;flex-direction:column;gap:10px">' +
+    '<div><label>Anchor columns (stay fixed)</label><div class="check-list">' + (anchorChecks || '<div style="color:var(--text3);font-size:11px;padding:6px">Load a source sheet first</div>') + '</div></div>' +
+    '<div><label>Pivot columns (to unpivot)</label><div class="check-list">' + (pivotChecks || '<div style="color:var(--text3);font-size:11px;padding:6px">Load a source sheet first</div>') + '</div><div style="font-size:10px;color:var(--text3);margin-top:4px">Leave all unchecked to auto-pivot non-anchor columns</div></div>' +
+    '<div class="row2">' +
+      '<div><label>Label column name</label><input type="text" value="' + esc(p.labelColName) + '" oninput="updateStepParam(' + id + ',\'labelColName\',this.value)"></div>' +
+      '<div><label>Value column name</label><input type="text" value="' + esc(p.valueColName) + '" oninput="updateStepParam(' + id + ',\'valueColName\',this.value)"></div>' +
+    '</div>' +
+  '</div>';
+}
+
+function unpivotToggleAnchor(id, col, checked) {
+  var s = getStep(id);
+  if (checked) { if (s.params.anchorCols.indexOf(col) === -1) s.params.anchorCols.push(col); }
+  else { s.params.anchorCols = s.params.anchorCols.filter(function(c){ return c !== col; }); }
+  updateSummary(s);
+}
+function unpivotTogglePivot(id, col, checked) {
+  var s = getStep(id);
+  if (checked) { if (s.params.pivotCols.indexOf(col) === -1) s.params.pivotCols.push(col); }
+  else { s.params.pivotCols = s.params.pivotCols.filter(function(c){ return c !== col; }); }
+  updateSummary(s);
+}
+
+// ── FILTER ───────────────────────────────────────────────────
+function buildFilterForm(step) {
+  var p = step.params; var id = step.id;
+  var ops = ['equals','notEquals','contains','notContains','startsWith','gt','gte','lt','lte','blank','notBlank'];
+  var rulesHtml = p.rules.map(function(r, ri) {
+    return '<div class="filter-rule">' +
+      '<select onchange="filterUpdateRule(' + id + ',' + ri + ',\'col\',this.value)"><option value="">-- col --</option>' + headerOptions(r.col) + '</select>' +
+      '<select onchange="filterUpdateRule(' + id + ',' + ri + ',\'op\',this.value)">' +
+        ops.map(function(op){ return '<option value="' + op + '"' + (op===r.op?' selected':'') + '>' + op + '</option>'; }).join('') +
+      '</select>' +
+      '<input type="text" value="' + esc(r.value) + '" placeholder="value" style="width:70px" oninput="filterUpdateRule(' + id + ',' + ri + ',\'value\',this.value)">' +
+      '<button class="btn btn-xs btn-danger" onclick="filterRemoveRule(' + id + ',' + ri + ')">✕</button>' +
+    '</div>';
+  }).join('');
+
+  return '<div style="display:flex;flex-direction:column;gap:10px">' +
+    '<div class="filter-rules" id="filter-rules-' + id + '">' + rulesHtml + '</div>' +
+    '<div style="display:flex;gap:8px;align-items:center">' +
+      '<button class="btn btn-sm" onclick="filterAddRule(' + id + ')">+ Add rule</button>' +
+      '<span style="font-size:11px;color:var(--text3)">Logic:</span>' +
+      '<select style="width:70px" onchange="updateStepParam(' + id + ',\'logic\',this.value)">' +
+        '<option value="AND"' + (p.logic==='AND'?' selected':'') + '>AND</option>' +
+        '<option value="OR"' + (p.logic==='OR'?' selected':'') + '>OR</option>' +
+      '</select>' +
+    '</div>' +
+  '</div>';
+}
+
+function filterAddRule(id) {
+  var s = getStep(id);
+  s.params.rules.push({ col: '', op: 'equals', value: '' });
+  rerenderStepBody(s);
+}
+function filterRemoveRule(id, ri) {
+  var s = getStep(id);
+  s.params.rules.splice(ri, 1);
+  rerenderStepBody(s);
+}
+function filterUpdateRule(id, ri, field, val) {
+  var s = getStep(id);
+  s.params.rules[ri][field] = val;
+  updateSummary(s);
+}
+
+// ── SELECT COLS ───────────────────────────────────────────────
+function buildSelectColsForm(step) {
+  var p = step.params; var id = step.id;
+  var hdrs = state.headers;
+
+  // Build cols list: existing params cols first, then any missing headers
+  var existing = p.cols.map(function(c){ return c.original; });
+  var all = existing.slice();
+  hdrs.forEach(function(h){ if(all.indexOf(h)===-1) all.push(h); });
+
+  // Add all missing from headers
+  hdrs.forEach(function(h){
+    if(!p.cols.find(function(c){ return c.original===h; })) {
+      p.cols.push({ original: h, rename: '', selected: true });
+    }
+  });
+
+  var rows = p.cols.map(function(c, ci) {
+    return '<label class="check-item">' +
+      '<input type="checkbox" ' + (c.selected!==false?'checked':'') + ' onchange="selectColToggle(' + id + ',' + ci + ',this.checked)">' +
+      '<span style="flex:1">' + esc(c.original) + '</span>' +
+      '<input class="rename-input" type="text" placeholder="rename…" value="' + esc(c.rename||'') + '" oninput="selectColRename(' + id + ',' + ci + ',this.value)">' +
+    '</label>';
+  }).join('');
+
+  return '<div><label>Columns (check to include, type to rename)</label>' +
+    '<div class="check-list">' + (rows || '<div style="color:var(--text3);font-size:11px;padding:6px">Load a source sheet first</div>') + '</div>' +
+    '<div style="display:flex;gap:6px;margin-top:8px">' +
+      '<button class="btn btn-xs" onclick="selectAllCols(' + id + ',true)">Select all</button>' +
+      '<button class="btn btn-xs" onclick="selectAllCols(' + id + ',false)">Deselect all</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function selectColToggle(id, ci, val) {
+  var s = getStep(id); s.params.cols[ci].selected = val;
+  updateSummary(s);
+}
+function selectColRename(id, ci, val) {
+  var s = getStep(id); s.params.cols[ci].rename = val;
+}
+function selectAllCols(id, val) {
+  var s = getStep(id);
+  s.params.cols.forEach(function(c){ c.selected = val; });
+  rerenderStepBody(s);
+}
+
+// ── SORT ─────────────────────────────────────────────────────
+function buildSortForm(step) {
+  var p = step.params; var id = step.id;
+  var keysHtml = p.keys.map(function(k, ki) {
+    return '<div class="sort-key">' +
+      '<select onchange="sortUpdateKey(' + id + ',' + ki + ',\'col\',this.value)"><option value="">-- col --</option>' + headerOptions(k.col) + '</select>' +
+      '<select style="width:80px" onchange="sortUpdateKey(' + id + ',' + ki + ',\'dir\',this.value)">' +
+        '<option value="asc"' + (k.dir==='asc'?' selected':'') + '>Asc ↑</option>' +
+        '<option value="desc"' + (k.dir==='desc'?' selected':'') + '>Desc ↓</option>' +
+      '</select>' +
+      '<button class="btn btn-xs btn-danger" onclick="sortRemoveKey(' + id + ',' + ki + ')">✕</button>' +
+    '</div>';
+  }).join('');
+
+  return '<div style="display:flex;flex-direction:column;gap:8px">' +
+    '<div class="sort-keys">' + keysHtml + '</div>' +
+    '<button class="btn btn-sm" onclick="sortAddKey(' + id + ')">+ Add sort level</button>' +
+  '</div>';
+}
+
+function sortAddKey(id) {
+  var s = getStep(id); s.params.keys.push({ col: '', dir: 'asc' }); rerenderStepBody(s);
+}
+function sortRemoveKey(id, ki) {
+  var s = getStep(id); s.params.keys.splice(ki, 1); rerenderStepBody(s);
+}
+function sortUpdateKey(id, ki, field, val) {
+  var s = getStep(id); s.params.keys[ki][field] = val; updateSummary(s);
+}
+
+// ── ADD COLUMN ────────────────────────────────────────────────
+function buildAddColForm(step) {
+  var p = step.params; var id = step.id;
+  var expr = p.expression || 'concat';
+
+  var concatBody = expr === 'concat' ? (
+    '<div><label>Columns to join</label>' +
+    '<div class="check-list" style="max-height:120px">' +
+    state.headers.map(function(h) {
+      var chk = (p.cols||[]).indexOf(h) !== -1;
+      return '<label class="check-item"><input type="checkbox" ' + (chk?'checked':'') + ' onchange="addColToggleCols(' + id + ',\'' + esc(h) + '\',this.checked)"><span>' + esc(h) + '</span></label>';
+    }).join('') + '</div></div>' +
+    '<div><label>Separator</label><input type="text" value="' + esc(p.separator!==undefined?p.separator:' ') + '" oninput="updateStepParam(' + id + ',\'separator\',this.value)" style="width:80px"></div>'
+  ) : '';
+
+  var mathBody = expr === 'math' ? (
+    '<div class="row3">' +
+      '<div><label>Column 1</label><select onchange="updateStepParam(' + id + ',\'col1\',this.value)"><option value="">--</option>' + headerOptions(p.col1) + '</select></div>' +
+      '<div><label>Operator</label><select onchange="updateStepParam(' + id + ',\'op\',this.value)">' +
+        ['+','-','*','/','%'].map(function(o){ return '<option'+(o===(p.op||'+')?' selected':'')+'>'+o+'</option>'; }).join('') +
+      '</select></div>' +
+      '<div><label>Column 2</label><select onchange="updateStepParam(' + id + ',\'col2\',this.value)"><option value="">--</option>' + headerOptions(p.col2) + '</select></div>' +
+    '</div>' +
+    '<div><label>Or static value</label><input type="number" value="' + esc(p.staticVal||'') + '" oninput="updateStepParam(' + id + ',\'staticVal\',this.value)"></div>'
+  ) : '';
+
+  var textBody = expr === 'text' ? (
+    '<div class="row2">' +
+      '<div><label>Column</label><select onchange="updateStepParam(' + id + ',\'col\',this.value)"><option value="">--</option>' + headerOptions(p.col) + '</select></div>' +
+      '<div><label>Operation</label><select onchange="updateStepParam(' + id + ',\'textOp\',this.value)">' +
+        ['upper','lower','trim','len'].map(function(o){ return '<option value="'+o+'"'+(o===(p.textOp||'upper')?' selected':'')+'>'+o+'</option>'; }).join('') +
+      '</select></div>' +
+    '</div>'
+  ) : '';
+
+  var condBody = expr === 'conditional' ? (
+    '<div class="row3">' +
+      '<div><label>If column</label><select onchange="updateStepParam(' + id + ',\'ifCol\',this.value)"><option value="">--</option>' + headerOptions(p.ifCol) + '</select></div>' +
+      '<div><label>Operator</label><select onchange="updateStepParam(' + id + ',\'ifOp\',this.value)">' +
+        ['equals','contains','gt','gte','lt','lte','blank','notBlank'].map(function(o){ return '<option value="'+o+'"'+(o===(p.ifOp||'equals')?' selected':'')+'>'+o+'</option>'; }).join('') +
+      '</select></div>' +
+      '<div><label>Value</label><input type="text" value="' + esc(p.ifVal||'') + '" oninput="updateStepParam(' + id + ',\'ifVal\',this.value)"></div>' +
+    '</div>' +
+    '<div class="row2">' +
+      '<div><label>Then</label><input type="text" value="' + esc(p.thenVal||'') + '" oninput="updateStepParam(' + id + ',\'thenVal\',this.value)"></div>' +
+      '<div><label>Else</label><input type="text" value="' + esc(p.elseVal||'') + '" oninput="updateStepParam(' + id + ',\'elseVal\',this.value)"></div>' +
+    '</div>'
+  ) : '';
+
+  return '<div style="display:flex;flex-direction:column;gap:10px">' +
+    '<div class="row2">' +
+      '<div><label>New column name</label><input type="text" value="' + esc(p.newColName||'') + '" oninput="updateStepParam(' + id + ',\'newColName\',this.value)"></div>' +
+      '<div><label>Expression type</label><select onchange="updateStepParamAndRerender(' + id + ',\'expression\',this.value)">' +
+        ['concat','math','text','conditional'].map(function(e){ return '<option value="'+e+'"'+(e===expr?' selected':'')+'>'+e+'</option>'; }).join('') +
+      '</select></div>' +
+    '</div>' +
+    concatBody + mathBody + textBody + condBody +
+  '</div>';
+}
+
+function addColToggleCols(id, col, checked) {
+  var s = getStep(id);
+  if (!s.params.cols) s.params.cols = [];
+  if (checked) { if (s.params.cols.indexOf(col)===-1) s.params.cols.push(col); }
+  else { s.params.cols = s.params.cols.filter(function(c){ return c !== col; }); }
+  updateSummary(s);
+}
+
+// ── CHANGE TYPE ───────────────────────────────────────────────
+function buildChangeTypeForm(step) {
+  var p = step.params; var id = step.id;
+  var rows = p.conversions.map(function(c, ci) {
+    return '<div class="sort-key">' +
+      '<select onchange="ctUpdateConv(' + id + ',' + ci + ',\'col\',this.value)"><option value="">-- col --</option>' + headerOptions(c.col) + '</select>' +
+      '<select style="width:90px" onchange="ctUpdateConv(' + id + ',' + ci + ',\'toType\',this.value)">' +
+        ['text','number','boolean','date'].map(function(t){ return '<option value="'+t+'"'+(t===c.toType?' selected':'')+'>'+t+'</option>'; }).join('') +
+      '</select>' +
+      (c.toType==='date' ? '<input type="text" placeholder="yyyy-MM-dd" value="' + esc(c.dateFormat||'yyyy-MM-dd') + '" style="width:100px" oninput="ctUpdateConv(' + id + ',' + ci + ',\'dateFormat\',this.value)">' : '') +
+      '<button class="btn btn-xs btn-danger" onclick="ctRemoveConv(' + id + ',' + ci + ')">✕</button>' +
+    '</div>';
+  }).join('');
+
+  return '<div style="display:flex;flex-direction:column;gap:8px">' +
+    '<div class="sort-keys">' + rows + '</div>' +
+    '<button class="btn btn-sm" onclick="ctAddConv(' + id + ')">+ Add conversion</button>' +
+  '</div>';
+}
+function ctAddConv(id) { var s=getStep(id); s.params.conversions.push({col:'',toType:'text'}); rerenderStepBody(s); }
+function ctRemoveConv(id, ci) { var s=getStep(id); s.params.conversions.splice(ci,1); rerenderStepBody(s); }
+function ctUpdateConv(id, ci, field, val) { var s=getStep(id); s.params.conversions[ci][field]=val; updateSummary(s); }
+
+// ── REMOVE DUPLICATES ─────────────────────────────────────────
+function buildRemoveDupForm(step) {
+  var p = step.params; var id = step.id;
+  var checks = state.headers.map(function(h) {
+    var chk = p.keyCols.indexOf(h) !== -1;
+    return '<label class="check-item"><input type="checkbox" ' + (chk?'checked':'') + ' onchange="dupToggleKey(' + id + ',\'' + esc(h) + '\',this.checked)"><span>' + esc(h) + '</span></label>';
+  }).join('');
+  return '<div><label>Key columns (leave all unchecked = use all columns)</label>' +
+    '<div class="check-list">' + (checks||'<div style="color:var(--text3);font-size:11px;padding:6px">Load a source sheet first</div>') + '</div>' +
+  '</div>';
+}
+function dupToggleKey(id, col, checked) {
+  var s = getStep(id);
+  if (checked) { if (s.params.keyCols.indexOf(col)===-1) s.params.keyCols.push(col); }
+  else { s.params.keyCols = s.params.keyCols.filter(function(c){ return c!==col; }); }
+  updateSummary(s);
+}
+
+// ── TRIM CLEAN ────────────────────────────────────────────────
+function buildTrimCleanForm(step) {
+  var p = step.params; var id = step.id;
+  var colChecks = state.headers.map(function(h) {
+    var chk = p.cols.indexOf(h) !== -1;
+    return '<label class="check-item"><input type="checkbox" '+(chk?'checked':'')+' onchange="trimToggleCol('+id+',\''+esc(h)+'\',this.checked)"><span>'+esc(h)+'</span></label>';
+  }).join('');
+  var opsList = ['trim','lower','upper','removeExtraSpaces','removeSpecial'];
+  var opChecks = opsList.map(function(op) {
+    var chk = p.ops.indexOf(op) !== -1;
+    return '<label class="check-item"><input type="checkbox" '+(chk?'checked':'')+' onchange="trimToggleOp('+id+',\''+op+'\',this.checked)"><span>'+op+'</span></label>';
+  }).join('');
+
+  return '<div style="display:flex;flex-direction:column;gap:10px">' +
+    '<div><label>Target columns (leave all unchecked = all text columns)</label><div class="check-list">'+(colChecks||'<div style="color:var(--text3);font-size:11px;padding:6px">Load a source sheet first</div>')+'</div></div>' +
+    '<div><label>Operations to apply</label><div class="check-list" style="max-height:120px">'+opChecks+'</div></div>' +
+  '</div>';
+}
+function trimToggleCol(id, col, checked) {
+  var s = getStep(id);
+  if (checked) { if (s.params.cols.indexOf(col)===-1) s.params.cols.push(col); }
+  else { s.params.cols = s.params.cols.filter(function(c){ return c!==col; }); }
+  updateSummary(s);
+}
+function trimToggleOp(id, op, checked) {
+  var s = getStep(id);
+  if (checked) { if (s.params.ops.indexOf(op)===-1) s.params.ops.push(op); }
+  else { s.params.ops = s.params.ops.filter(function(o){ return o!==op; }); }
+  updateSummary(s);
+}
+
+// ============================================================
+//  STEP HELPERS
+// ============================================================
+function getStep(id) { return state.steps.find(function(s){ return s.id===id; }); }
+
+function updateStepParam(id, key, val) {
+  var s = getStep(id); if (s) { s.params[key] = val; updateSummary(s); }
+}
+
+function updateStepParamAndRerender(id, key, val) {
+  var s = getStep(id); if (!s) return;
+  s.params[key] = val; rerenderStepBody(s);
+}
+
+function updateSummary(step) {
+  var el = document.getElementById('step-summary-' + step.id);
+  if (el) el.textContent = getStepSummary(step);
+}
+
+function rerenderStepBody(step) {
+  var body = document.getElementById('step-body-' + step.id);
+  if (body) {
+    body.innerHTML = buildStepForm(step);
+    body.classList.add('open');
+  }
+  updateSummary(step);
+}
+
+function refreshStepUIs() {
+  state.steps.forEach(function(s) {
+    var body = document.getElementById('step-body-' + s.id);
+    if (body && body.classList.contains('open')) {
+      body.innerHTML = buildStepForm(s);
+    }
+  });
+}
+
+// ============================================================
+//  PREVIEW
+// ============================================================
+function runPreview() {
+  var qd = buildQueryDef();
+  if (!qd.sourceName) { setStatus('preview','error','Please select a source sheet first.'); return; }
+  setStatus('preview','loading','Running preview…');
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (!res.success) { setStatus('preview','error',res.error); return; }
+      renderPreviewTable(res.data);
+      setStatus('preview','ok','Preview ready — ' + (res.data.length-1) + ' rows shown');
+    })
+    .withFailureHandler(function(e) { setStatus('preview','error',e.message); })
+    .previewQuery(qd);
+}
+
+function renderPreviewTable(data) {
+  var container = document.getElementById('preview-container');
+  var stats = document.getElementById('preview-stats');
+  if (!data || data.length === 0) {
+    container.innerHTML = '<div class="empty-state">No data returned.</div>';
+    stats.textContent = '0 rows';
+    return;
+  }
+  var header = data[0];
+  var rows   = data.slice(1);
+  stats.textContent = rows.length + ' rows · ' + header.length + ' columns (preview limited to 50 rows)';
+
+  var html = '<div class="preview-wrap"><table class="preview-table"><thead><tr>' +
+    header.map(function(h) { return '<th>' + esc(String(h)) + '</th>'; }).join('') +
+    '</tr></thead><tbody>' +
+    rows.map(function(row) {
+      return '<tr>' + row.map(function(cell) {
+        return '<td title="' + esc(String(cell)) + '">' + esc(String(cell)) + '</td>';
+      }).join('') + '</tr>';
+    }).join('') +
+    '</tbody></table></div>';
+
+  container.innerHTML = html;
+}
+
+// ============================================================
+//  RUN FULL QUERY
+// ============================================================
+function runFullQuery() {
+  var qd = buildQueryDef();
+  if (!qd.sourceName) { setStatus('output','error','Please select a source sheet first.'); return; }
+
+  // Apply output settings
+  qd.outputName = document.getElementById('out-name').value.trim() || ('PQ_' + qd.sourceName);
+  qd.replaceExisting = document.getElementById('toggle-replace').classList.contains('on');
+  if (document.getElementById('toggle-timestamp').classList.contains('on')) {
+    var d = new Date();
+    var mm  = String(d.getMonth() + 1).padStart(2, '0');
+    var dd  = String(d.getDate()).padStart(2, '0');
+    var hh  = String(d.getHours()).padStart(2, '0');
+    var min = String(d.getMinutes()).padStart(2, '0');
+    qd.outputName += '_' + mm + dd + '_' + hh + min;
+  }
+
+  setStatus('output','loading','Running query…');
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (!res.success) { setStatus('output','error',res.error); return; }
+      setStatus('output','ok','Done! Sheet "' + res.outputSheet + '" — ' + res.rows + ' rows written.');
+    })
+    .withFailureHandler(function(e) { setStatus('output','error',e.message); })
+    .runQuery(qd);
+}
+
+// ============================================================
+//  SAVE / LOAD QUERIES
+// ============================================================
+function buildQueryDef() {
+  // Normalise selectCols params before sending
+  var steps = state.steps.map(function(s) {
+    var clone = JSON.parse(JSON.stringify(s));
+    if (clone.type === 'selectCols') {
+      clone.params.cols = clone.params.cols.filter(function(c){ return c.selected !== false; });
+    }
+    return clone;
+  });
+
+  return {
+    sourceName:  document.getElementById('src-sheet').value,
+    headerRows:  parseInt(document.getElementById('src-header-rows').value, 10),
+    steps:       steps
+  };
+}
+
+function saveCurrentQuery() {
+  var name = prompt('Save query as:');
+  if (!name) return;
+  var qd = buildQueryDef();
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (res.success) { alert('Query "' + name + '" saved!'); loadSavedQueries(); }
+      else alert('Save failed: ' + res.error);
+    })
+    .saveQuery(name, qd);
+}
+
+function loadSavedQueries() {
+  google.script.run
+    .withSuccessHandler(function(names) {
+      renderSavedList(names);
+    })
+    .listSavedQueries();
+}
+
+function renderSavedList(names) {
+  var c = document.getElementById('saved-list-container');
+  if (!names || names.length === 0) {
+    c.innerHTML = '<div class="empty-state">No saved queries yet.<br>Build a query and hit "Save".</div>';
+    return;
+  }
+  c.innerHTML = '<div class="saved-list">' +
+    names.map(function(n) {
+      return '<div class="saved-item">' +
+        '<div class="saved-name">' + esc(n) + '</div>' +
+        '<button class="btn btn-sm" onclick="loadAndApplyQuery(\'' + esc(n) + '\')">Load</button>' +
+        '<button class="btn btn-sm btn-accent" onclick="runSavedDirect(\'' + esc(n) + '\')">▶ Run</button>' +
+        '<button class="btn btn-sm btn-danger" onclick="deleteSavedQuery(\'' + esc(n) + '\')">✕</button>' +
+      '</div>';
+    }).join('') +
+  '</div>';
+}
+
+function loadAndApplyQuery(name) {
+  google.script.run
+    .withSuccessHandler(function(qd) {
+      if (!qd) { alert('Query not found.'); return; }
+      // Apply to UI
+      document.getElementById('src-sheet').value = qd.sourceName || '';
+      document.getElementById('src-header-rows').value = qd.headerRows || 1;
+      state.steps = (qd.steps || []).map(function(s, i) {
+        s.id = ++state.stepIdSeq;
+        return s;
+      });
+      onSourceChange();
+      renderSteps();
+      switchTab('build');
+      alert('Query "' + name + '" loaded.');
+    })
+    .loadQuery(name);
+}
+
+function runSavedDirect(name) {
+  google.script.run
+    .withSuccessHandler(function(qd) {
+      if (!qd) { alert('Query not found.'); return; }
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.success) alert('Done! Sheet "' + res.outputSheet + '" — ' + res.rows + ' rows.');
+          else alert('Error: ' + res.error);
+        })
+        .runQuery(qd);
+    })
+    .loadQuery(name);
+}
+
+function deleteSavedQuery(name) {
+  if (!confirm('Delete "' + name + '"?')) return;
+  google.script.run
+    .withSuccessHandler(function() { loadSavedQueries(); })
+    .deleteQuery(name);
+}
+
+// ============================================================
+//  REFRESH
+// ============================================================
+function refreshSidebar() {
+  var btn = document.querySelector('.btn-icon[title="Refresh sidebar"]');
+  if (btn) { btn.textContent = '…'; btn.disabled = true; }
+
+  function finish(msg, isErr) {
+    setStatus('build', isErr ? 'error' : 'ok', msg);
+    if (btn) { btn.textContent = '↻'; btn.disabled = false; }
+  }
+
+  google.script.run
+    .withSuccessHandler(function(names) {
+      state.sheets = names;
+
+      // Rebuild sheet dropdown
+      var sel = document.getElementById('src-sheet');
+      var currentVal = sel.value;
+      sel.innerHTML = '<option value="">-- select sheet --</option>';
+      names.forEach(function(n) {
+        var o = document.createElement('option');
+        o.value = o.text = n;
+        sel.appendChild(o);
+      });
+      if (names.indexOf(currentVal) !== -1) sel.value = currentVal;
+
+      // Always re-render steps (fixes "loading" ghost state)
+      renderSteps();
+      loadSavedQueries();
+
+      if (sel.value) {
+        // Reload headers then refresh open step forms
+        google.script.run
+          .withSuccessHandler(function(hdrs) {
+            state.headers = hdrs;
+            refreshStepUIs();
+            finish('Refreshed — ' + names.length + ' sheet(s) found');
+          })
+          .withFailureHandler(function(e) { finish(e.message, true); })
+          .getSheetHeaders(sel.value);
+      } else {
+        state.headers = [];
+        finish('Refreshed — ' + names.length + ' sheet(s) found');
+      }
+    })
+    .withFailureHandler(function(e) { finish('Refresh failed: ' + e.message, true); })
+    .getSheetNames();
+}
+
+
+// ============================================================
+//  DRAG & DROP REORDER
+// ============================================================
+var _dragSrcId = null;
+
+function onDragStart(e) {
+  _dragSrcId = parseInt(this.dataset.id);
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', String(_dragSrcId));
+}
+
+function onDragEnd(e) {
+  this.classList.remove('dragging');
+  document.querySelectorAll('.step-card').forEach(function(c) {
+    c.classList.remove('drag-over-top', 'drag-over-bottom');
+  });
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  var id = parseInt(this.dataset.id);
+  if (id === _dragSrcId) return;
+  this.classList.remove('drag-over-top', 'drag-over-bottom');
+  var rect = this.getBoundingClientRect();
+  this.classList.add(e.clientY < rect.top + rect.height / 2 ? 'drag-over-top' : 'drag-over-bottom');
+}
+
+function onDragLeave(e) {
+  this.classList.remove('drag-over-top', 'drag-over-bottom');
+}
+
+function onDrop(e) {
+  e.preventDefault();
+  var targetId  = parseInt(this.dataset.id);
+  if (targetId === _dragSrcId) return;
+  var rect      = this.getBoundingClientRect();
+  var dropAfter = e.clientY >= rect.top + rect.height / 2;
+  var srcIdx = state.steps.findIndex(function(s){ return s.id === _dragSrcId; });
+  var tgtIdx = state.steps.findIndex(function(s){ return s.id === targetId; });
+  if (srcIdx === -1 || tgtIdx === -1) return;
+  var moved = state.steps.splice(srcIdx, 1)[0];
+  var insertAt = state.steps.findIndex(function(s){ return s.id === targetId; });
+  if (dropAfter) insertAt++;
+  state.steps.splice(insertAt, 0, moved);
+  var meta = STEP_META[moved.type] || { label: moved.type, icon: '◇' };
+  pushHistory('Moved ' + meta.label + ' to #' + (insertAt + 1), '⇅');
+  renderSteps();
+  updateRunInfo();
+}
+
+// ============================================================
+//  UNDO / REDO / HISTORY
+// ============================================================
+var HISTORY_MAX = 50;
+
+function pushHistory(desc, icon) {
+  if (state.historyIdx < state.history.length - 1) {
+    state.history = state.history.slice(0, state.historyIdx + 1);
+  }
+  state.history.push({
+    steps: JSON.parse(JSON.stringify(state.steps)),
+    desc:  desc || 'Change',
+    icon:  icon || '◇',
+    time:  new Date()
+  });
+  if (state.history.length > HISTORY_MAX) {
+    state.history = state.history.slice(state.history.length - HISTORY_MAX);
+  }
+  state.historyIdx = state.history.length - 1;
+  updateHistoryControls();
+}
+
+function historyUndo() {
+  if (state.historyIdx <= 0) return;
+  state.historyIdx--;
+  _applyHistoryAt(state.historyIdx);
+}
+
+function historyRedo() {
+  if (state.historyIdx >= state.history.length - 1) return;
+  state.historyIdx++;
+  _applyHistoryAt(state.historyIdx);
+}
+
+function _applyHistoryAt(idx) {
+  var entry = state.history[idx];
+  if (!entry) return;
+  state.steps = JSON.parse(JSON.stringify(entry.steps));
+  state.steps.forEach(function(s) {
+    if (s.id >= state.stepIdSeq) state.stepIdSeq = s.id + 1;
+  });
+  updateHistoryControls();
+  renderSteps();
+  updateRunInfo();
+  renderHistoryList();
+}
+
+function historyClear() {
+  if (!confirm('Clear all history? This cannot be undone.')) return;
+  state.history = [];
+  state.historyIdx = -1;
+  updateHistoryControls();
+  renderHistoryList();
+}
+
+function updateHistoryControls() {
+  var btnUndo = document.getElementById('btn-undo');
+  var btnRedo = document.getElementById('btn-redo');
+  var countEl = document.getElementById('history-count');
+  if (btnUndo) btnUndo.disabled = state.historyIdx <= 0;
+  if (btnRedo) btnRedo.disabled = state.historyIdx >= state.history.length - 1;
+  if (countEl) countEl.textContent = (state.historyIdx + 1) + ' / ' + state.history.length;
+}
+
+function renderHistoryList() {
+  var list = document.getElementById('history-list');
+  if (!list) return;
+  updateHistoryControls();
+  if (state.history.length === 0) {
+    list.innerHTML = '<div class="empty-state">No history yet. Start adding steps.</div>';
+    return;
+  }
+  var html = '';
+  for (var i = state.history.length - 1; i >= 0; i--) {
+    var e   = state.history[i];
+    var cls = i === state.historyIdx
+      ? 'history-entry current'
+      : (i > state.historyIdx ? 'history-entry future' : 'history-entry');
+    var badge = i === state.historyIdx ? '<span class="history-badge">NOW</span>' : '';
+    html += '<div class="' + cls + '" onclick="historyJumpTo(' + i + ')">' +
+      '<span class="history-ic">' + (e.icon || '◇') + '</span>' +
+      '<span class="history-desc">' + esc(e.desc) + '</span>' +
+      badge +
+      '<span class="history-time">' + _fmtTime(e.time) + '</span>' +
+    '</div>';
+  }
+  list.innerHTML = html;
+}
+
+function historyJumpTo(idx) {
+  if (idx < 0 || idx >= state.history.length) return;
+  state.historyIdx = idx;
+  _applyHistoryAt(idx);
+}
+
+function _fmtTime(d) {
+  if (!d) return '';
+  var t = (d instanceof Date) ? d : new Date(d);
+  return String(t.getHours()).padStart(2,'0') + ':' +
+         String(t.getMinutes()).padStart(2,'0') + ':' +
+         String(t.getSeconds()).padStart(2,'0');
+}
+
+document.addEventListener('keydown', function(e) {
+  var tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') { e.preventDefault(); historyUndo(); }
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); historyRedo(); }
+});
+
+function setStatus(panel, type, msg) {
+  var el = document.getElementById('status-' + panel);
+  if (!el) return;
+  el.className = 'status ' + type;
+  el.innerHTML = '<div class="dot"></div><span>' + msg + '</span>';
+}
+</script>
+</body>
+</html>
